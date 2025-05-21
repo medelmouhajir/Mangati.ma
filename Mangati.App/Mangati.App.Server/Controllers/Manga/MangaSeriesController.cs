@@ -155,7 +155,7 @@ public class MangaSeriesController : ControllerBase
 
     // POST: api/mangaseries
     [HttpPost]
-    [Authorize(Roles = "Writer,Admin")]
+    [Authorize(Roles = "Writer,Admin,writer,admin")]
     public async Task<ActionResult<MangaSeriesDto>> CreateMangaSeries(CreateMangaSeriesDto dto)
     {
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

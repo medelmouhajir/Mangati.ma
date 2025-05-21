@@ -73,6 +73,7 @@ export const AuthProvider = ({ children }) => {
             setCurrentUser(data.user);
 
             console.log('Login successful:', data.user);
+            console.log(data.user.roles);
 
             // Check for redirect URL
             const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
