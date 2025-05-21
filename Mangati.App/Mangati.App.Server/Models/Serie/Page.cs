@@ -9,6 +9,8 @@ namespace Mangati.App.Server.Models.Serie
         [Required]
         public string ImageUrl { get; set; }
 
+        public long FileSizeBytes { get; set; }
+
         public int Order { get; set; }
 
         // FK to chapter

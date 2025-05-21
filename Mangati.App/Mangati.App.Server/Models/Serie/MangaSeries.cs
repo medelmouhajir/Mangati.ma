@@ -12,11 +12,18 @@ namespace Mangati.App.Server.Models.Serie
         [Required, MaxLength(200)]
         public string Title { get; set; }
 
+        [MaxLength(2000)]
         public string Synopsis { get; set; }
 
+        [Url]
         public string CoverImageUrl { get; set; }
 
+        [Required]
         public SeriesStatus Status { get; set; }  // e.g. Ongoing, Completed
+
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedAt { get; set; }
 
         // Foreign key to owner (writer)
         public string AuthorUserId { get; set; }
