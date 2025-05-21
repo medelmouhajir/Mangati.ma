@@ -572,3 +572,77 @@ body {
         height: auto;
         display: block;
     }
+
+
+
+
+
+
+
+/* Debug panel styles - Add to App.css */
+.debug-panel {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    width: 300px;
+    background-color: rgba(0, 0, 0, 0.85);
+    color: #00ff00;
+    padding: 1rem;
+    z-index: 9999;
+    font-family: monospace;
+    font-size: 0.85rem;
+    max-height: 50vh;
+    overflow-y: auto;
+    border-top-left-radius: 4px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+    .debug-panel h3 {
+        margin-top: 0;
+        border-bottom: 1px solid #666;
+        padding-bottom: 0.5rem;
+        color: #fff;
+    }
+
+    .debug-panel h4 {
+        margin: 0.5rem 0;
+        color: #aaffaa;
+    }
+
+    .debug-panel p {
+        margin: 0.25rem 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+.debug-section {
+    margin-bottom: 1rem;
+}
+
+.debug-close {
+    background-color: transparent;
+    color: #ff9999;
+    border: 1px solid #ff6666;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    float: right;
+    margin-top: -3rem;
+}
+
+    .debug-close:hover {
+        background-color: rgba(255, 0, 0, 0.2);
+    }
+
+/* Add color styles for auth status in debug panel */
+.debug-status-ok {
+    color: #00ff00;
+}
+
+.debug-status-warning {
+    color: #ffff00;
+}
+
+.debug-status-error {
+    color: #ff3333;
+}

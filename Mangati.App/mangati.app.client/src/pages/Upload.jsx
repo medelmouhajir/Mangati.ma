@@ -8,7 +8,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const Upload = () => {
     const navigate = useNavigate();
-    const { isAuthenticated, currentUser } = useAuth();
+    const { isAuthenticated, currentUser, loading: authLoading } = useAuth();
 
     const [formData, setFormData] = useState({
         title: '',
@@ -18,190 +18,213 @@ const Upload = () => {
         tagIds: []
     });
 
-    const [languages, setLanguages] = useState([]);
-    const [tags, setTags] = useState([]);
-    const [newTagInput, setNewTagInput] = useState('');
-    const [newLanguageInput, setNewLanguageInput] = useState('');
-
+    const [availableLanguages, setAvailableLanguages] = useState([]);
+    const [availableTags, setAvailableTags] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [filtersLoading, setFiltersLoading] = useState(true);
+    const [submitLoading, setSubmitLoading] = useState(false);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
+    
+    // New tag/language creation
+    const [newTag, setNewTag] = useState('');
+    const [newLanguage, setNewLanguage] = useState('');
+    const [addingTag, setAddingTag] = useState(false);
+    const [addingLanguage, setAddingLanguage] = useState(false);
 
+    // Authentication check with better error handling
     useEffect(() => {
-        // Check if user is logged in and has Writer role
-        if (!isAuthenticated) {
-            navigate('/login');
-            return;
-        }
+        console.log('Auth state:', { isAuthenticated, currentUser, authLoading });
+        
+        if (!authLoading) {
+            if (!isAuthenticated) {
+                console.log('Not authenticated, redirecting to login');
+                navigate('/login', { state: { from: { pathname: '/upload' } } });
+                return;
+            }
 
-        if (isAuthenticated && !currentUser.roles.includes('Writer') && !currentUser.roles.includes('Admin')) {
-            navigate('/');
-            return;
+            if (!currentUser?.roles?.includes('Writer') && !currentUser?.roles?.includes('Admin')) {
+                console.log('Insufficient permissions, redirecting home');
+                navigate('/');
+                return;
+            }
         }
+    }, [isAuthenticated, currentUser, authLoading, navigate]);
 
-        // Fetch filters (languages and tags) from API
+    // Fetch filters data
+    useEffect(() => {
         const fetchFilters = async () => {
-            setFiltersLoading(true);
+            if (!isAuthenticated || authLoading) return;
+            
+            setLoading(true);
             try {
                 const filters = await filtersApi.getAllFilters();
-                setLanguages(filters.languages || []);
-                setTags(filters.tags || []);
+                setAvailableLanguages(filters.languages || []);
+                setAvailableTags(filters.tags || []);
             } catch (err) {
                 console.error('Failed to fetch filters:', err);
-                setError('Failed to load languages and tags. Please try again later.');
+                setError('Failed to load form data. Please refresh the page.');
             } finally {
-                setFiltersLoading(false);
+                setLoading(false);
             }
         };
 
         fetchFilters();
-    }, [isAuthenticated, currentUser, navigate]);
+    }, [isAuthenticated, authLoading]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setFormData({ ...formData, [name]: value });
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+        
+        // Clear error when user starts typing
+        if (error) {
+            setError(null);
+        }
     };
 
-    const handleLanguageToggle = (id) => {
-        setFormData(prev => {
-            const languageIds = [...prev.languageIds];
-
-            if (languageIds.includes(id)) {
-                return {
-                    ...prev,
-                    languageIds: languageIds.filter(langId => langId !== id)
-                };
-            } else {
-                return {
-                    ...prev,
-                    languageIds: [...languageIds, id]
-                };
-            }
-        });
+    const handleMultiSelectChange = (name, value) => {
+        setFormData(prev => ({
+            ...prev,
+            [name]: prev[name].includes(value)
+                ? prev[name].filter(id => id !== value)
+                : [...prev[name], value]
+        }));
     };
 
-    const handleTagToggle = (id) => {
-        setFormData(prev => {
-            const tagIds = [...prev.tagIds];
+    const handleAddTag = async () => {
+        if (!newTag.trim() || addingTag) return;
 
-            if (tagIds.includes(id)) {
-                return {
-                    ...prev,
-                    tagIds: tagIds.filter(tagId => tagId !== id)
-                };
-            } else {
-                return {
-                    ...prev,
-                    tagIds: [...tagIds, id]
-                };
-            }
-        });
-    };
-
-    const handleCreateTag = async (e) => {
-        e.preventDefault();
-        if (!newTagInput.trim()) return;
-
+        setAddingTag(true);
         try {
-            setFiltersLoading(true);
-            const newTag = await filtersApi.createTag({ name: newTagInput.trim() });
-            setTags([...tags, newTag]);
-            // Automatically select the new tag
+            const newTagObj = await filtersApi.createTag({ name: newTag.trim() });
+            setAvailableTags(prev => [...prev, newTagObj].sort((a, b) => a.name.localeCompare(b.name)));
+            setNewTag('');
+            
+            // Auto-select the new tag
             setFormData(prev => ({
                 ...prev,
-                tagIds: [...prev.tagIds, newTag.id]
+                tagIds: [...prev.tagIds, newTagObj.id]
             }));
-            setNewTagInput('');
         } catch (err) {
-            const errorMessage = err.response?.data?.message || 'Failed to create tag';
-            setError(errorMessage);
-            console.error('Error creating tag:', err);
+            console.error('Failed to create tag:', err);
+            setError(err.response?.data?.message || 'Failed to create tag');
         } finally {
-            setFiltersLoading(false);
+            setAddingTag(false);
         }
     };
 
-    const handleCreateLanguage = async (e) => {
-        e.preventDefault();
-        if (!newLanguageInput.trim()) return;
+    const handleAddLanguage = async () => {
+        if (!newLanguage.trim() || addingLanguage) return;
 
-        // Only admin can create languages
-        if (!currentUser.roles.includes('Admin')) {
-            setError('Only administrators can add new languages');
-            return;
-        }
-
+        setAddingLanguage(true);
         try {
-            setFiltersLoading(true);
-            const newLanguage = await filtersApi.createLanguage({ name: newLanguageInput.trim() });
-            setLanguages([...languages, newLanguage]);
-            // Automatically select the new language
+            const newLangObj = await filtersApi.createLanguage({ name: newLanguage.trim() });
+            setAvailableLanguages(prev => [...prev, newLangObj].sort((a, b) => a.name.localeCompare(b.name)));
+            setNewLanguage('');
+            
+            // Auto-select the new language
             setFormData(prev => ({
                 ...prev,
-                languageIds: [...prev.languageIds, newLanguage.id]
+                languageIds: [...prev.languageIds, newLangObj.id]
             }));
-            setNewLanguageInput('');
         } catch (err) {
-            const errorMessage = err.response?.data?.message || 'Failed to create language';
-            setError(errorMessage);
-            console.error('Error creating language:', err);
+            console.error('Failed to create language:', err);
+            setError(err.response?.data?.message || 'Failed to create language');
         } finally {
-            setFiltersLoading(false);
+            setAddingLanguage(false);
         }
+    };
+
+    const validateForm = () => {
+        if (!formData.title.trim()) {
+            setError('Title is required');
+            return false;
+        }
+        
+        if (!formData.coverImageUrl.trim()) {
+            setError('Cover image URL is required');
+            return false;
+        }
+        
+        try {
+            new URL(formData.coverImageUrl);
+        } catch {
+            setError('Please enter a valid cover image URL');
+            return false;
+        }
+
+        return true;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
-        // Validate form
-        if (!formData.title.trim()) {
-            setError('Please enter a title for your manga.');
+        
+        console.log('Form submitted, validating...');
+        
+        if (!validateForm()) {
             return;
         }
 
-        if (!formData.synopsis.trim()) {
-            setError('Please enter a synopsis for your manga.');
+        // Double-check authentication before submission
+        if (!isAuthenticated || !currentUser) {
+            setError('Authentication lost. Please log in again.');
+            navigate('/login');
             return;
         }
 
-        if (!formData.coverImageUrl.trim()) {
-            setError('Please provide a cover image URL for your manga.');
-            return;
-        }
-
-        if (formData.languageIds.length === 0) {
-            setError('Please select at least one language for your manga.');
-            return;
-        }
-
-        setLoading(true);
+        setSubmitLoading(true);
         setError(null);
 
         try {
+            console.log('Submitting manga data:', formData);
+            
             const newManga = await mangaApi.createManga({
                 title: formData.title,
                 synopsis: formData.synopsis,
                 coverImageUrl: formData.coverImageUrl,
-                languageIds: formData.languageIds,
-                tagIds: formData.tagIds
+                languageIds: formData.languageIds.length > 0 ? formData.languageIds : null,
+                tagIds: formData.tagIds.length > 0 ? formData.tagIds : null
             });
 
+            console.log('Manga created successfully:', newManga);
             setSuccess(true);
 
-            // Navigate to the new manga page after a short delay
+            // Redirect to the new manga page after a brief delay
             setTimeout(() => {
                 navigate(`/manga/${newManga.id}`);
-            }, 2000);
+            }, 1500);
+
         } catch (err) {
             console.error('Failed to create manga:', err);
-            setError(err.response?.data?.message || 'Failed to create manga. Please try again later.');
+            
+            // Handle specific error cases
+            if (err.response?.status === 401) {
+                setError('Your session has expired. Please log in again.');
+                navigate('/login');
+            } else if (err.response?.status === 403) {
+                setError('You do not have permission to create manga series.');
+            } else {
+                setError(err.response?.data?.message || 'Failed to create manga series. Please try again.');
+            }
         } finally {
-            setLoading(false);
+            setSubmitLoading(false);
         }
     };
 
-    if (loading || filtersLoading) {
+    // Show loading while authentication is being checked
+    if (authLoading) {
+        return <LoadingSpinner />;
+    }
+
+    // Don't render if not authenticated (component will redirect)
+    if (!isAuthenticated) {
+        return null;
+    }
+
+    // Show loading while fetching filters
+    if (loading) {
         return <LoadingSpinner />;
     }
 
@@ -212,7 +235,13 @@ const Upload = () => {
             {error && (
                 <div className="error-message">
                     {error}
-                    <button className="close-error" onClick={() => setError(null)}>×</button>
+                    <button 
+                        className="close-error" 
+                        onClick={() => setError(null)}
+                        aria-label="Close error"
+                    >
+                        ×
+                    </button>
                 </div>
             )}
 
@@ -233,20 +262,24 @@ const Upload = () => {
                         onChange={handleInputChange}
                         placeholder="Enter manga title"
                         required
+                        maxLength={200}
                     />
                 </div>
 
                 <div className="form-group">
-                    <label htmlFor="synopsis">Synopsis <span className="required">*</span></label>
+                    <label htmlFor="synopsis">Synopsis</label>
                     <textarea
                         id="synopsis"
                         name="synopsis"
                         value={formData.synopsis}
                         onChange={handleInputChange}
-                        placeholder="Enter a brief description of your manga"
-                        rows="5"
-                        required
-                    ></textarea>
+                        placeholder="Enter manga synopsis"
+                        rows={6}
+                        maxLength={2000}
+                    />
+                    <div className="char-count">
+                        {formData.synopsis.length}/2000 characters
+                    </div>
                 </div>
 
                 <div className="form-group">
@@ -257,90 +290,108 @@ const Upload = () => {
                         name="coverImageUrl"
                         value={formData.coverImageUrl}
                         onChange={handleInputChange}
-                        placeholder="Enter URL for cover image"
+                        placeholder="https://example.com/cover.jpg"
                         required
                     />
                     {formData.coverImageUrl && (
                         <div className="cover-preview">
-                            <img src={formData.coverImageUrl} alt="Cover preview" />
+                            <img 
+                                src={formData.coverImageUrl} 
+                                alt="Cover preview" 
+                                onError={(e) => {
+                                    e.target.style.display = 'none';
+                                }}
+                                onLoad={(e) => {
+                                    e.target.style.display = 'block';
+                                }}
+                            />
                         </div>
                     )}
                 </div>
 
                 <div className="form-group">
-                    <label>Languages <span className="required">*</span></label>
-                    <div className="checkbox-group">
-                        {languages.map(language => (
-                            <label key={language.id} className="checkbox-label">
+                    <label>Languages</label>
+                    <div className="checkbox-grid">
+                        {availableLanguages.map(lang => (
+                            <label key={lang.id} className="checkbox-item">
                                 <input
                                     type="checkbox"
-                                    checked={formData.languageIds.includes(language.id)}
-                                    onChange={() => handleLanguageToggle(language.id)}
+                                    checked={formData.languageIds.includes(lang.id)}
+                                    onChange={() => handleMultiSelectChange('languageIds', lang.id)}
                                 />
-                                {language.name}
+                                {lang.name}
                             </label>
                         ))}
                     </div>
-
-                    {currentUser.roles.includes('Admin') && (
-                        <div className="add-new-item">
-                            <input
-                                type="text"
-                                value={newLanguageInput}
-                                onChange={(e) => setNewLanguageInput(e.target.value)}
-                                placeholder="Add new language..."
-                            />
-                            <button
-                                type="button"
-                                onClick={handleCreateLanguage}
-                                disabled={!newLanguageInput.trim()}
-                                className="add-btn"
-                            >
-                                Add
-                            </button>
-                        </div>
-                    )}
+                    
+                    <div className="add-new-item">
+                        <input
+                            type="text"
+                            value={newLanguage}
+                            onChange={(e) => setNewLanguage(e.target.value)}
+                            placeholder="Add new language"
+                            maxLength={50}
+                        />
+                        <button
+                            type="button"
+                            onClick={handleAddLanguage}
+                            disabled={addingLanguage || !newLanguage.trim()}
+                            className="add-btn"
+                        >
+                            {addingLanguage ? 'Adding...' : 'Add'}
+                        </button>
+                    </div>
                 </div>
 
                 <div className="form-group">
                     <label>Tags</label>
-                    <div className="checkbox-group tags-grid">
-                        {tags.map(tag => (
-                            <label key={tag.id} className="checkbox-label">
+                    <div className="checkbox-grid">
+                        {availableTags.map(tag => (
+                            <label key={tag.id} className="checkbox-item">
                                 <input
                                     type="checkbox"
                                     checked={formData.tagIds.includes(tag.id)}
-                                    onChange={() => handleTagToggle(tag.id)}
+                                    onChange={() => handleMultiSelectChange('tagIds', tag.id)}
                                 />
                                 {tag.name}
                             </label>
                         ))}
                     </div>
-
+                    
                     <div className="add-new-item">
                         <input
                             type="text"
-                            value={newTagInput}
-                            onChange={(e) => setNewTagInput(e.target.value)}
-                            placeholder="Add new tag..."
+                            value={newTag}
+                            onChange={(e) => setNewTag(e.target.value)}
+                            placeholder="Add new tag"
+                            maxLength={50}
                         />
                         <button
                             type="button"
-                            onClick={handleCreateTag}
-                            disabled={!newTagInput.trim()}
+                            onClick={handleAddTag}
+                            disabled={addingTag || !newTag.trim()}
                             className="add-btn"
                         >
-                            Add
+                            {addingTag ? 'Adding...' : 'Add'}
                         </button>
                     </div>
                 </div>
 
                 <div className="form-actions">
-                    <button type="button" onClick={() => navigate('/')} className="cancel-btn">
+                    <button 
+                        type="button" 
+                        onClick={() => navigate('/')}
+                        className="cancel-btn"
+                        disabled={submitLoading}
+                    >
                         Cancel
                     </button>
-                    <button type="submit" className="submit-btn" disabled={loading}>
-                        {loading ? 'Creating...' : 'Create Manga Series'}
+                    <button 
+                        type="submit" 
+                        className="submit-btn"
+                        disabled={submitLoading}
+                    >
+                        {submitLoading ? 'Creating...' : 'Create Manga Series'}
                     </button>
                 </div>
             </form>
