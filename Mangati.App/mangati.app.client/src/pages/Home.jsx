@@ -50,7 +50,7 @@ const Home = () => {
         <div className="home-page">
             <section className="hero-section">
                 <div className="hero-content">
-                    <h1>Welcome to Mangati</h1>
+                    <h1>Welcome to Mangatis</h1>
                     <p>Discover and read your favorite manga series</p>
                     <Link to="/browse" className="cta-button">Browse Manga</Link>
                 </div>
