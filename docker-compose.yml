@@ -7,8 +7,7 @@ services:
       context: .
       dockerfile: Mangati.App/Mangati.App.Server/Dockerfile
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:5000;https://+:5001;http://+:8080;https://+:8081
@@ -56,20 +55,14 @@ services:
       - "1433:1433"
     volumes:
       - mangati-db:/var/opt/mssql
-    healthcheck:
-      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "${DB_PASSWORD:-YourStr0ngP@ssw0rd}" -Q "SELECT 1" -b -1
-      interval: 15s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
     deploy:
       resources:
         limits:
-          cpus: '0.70'
-          memory: 2G
+           cpus: '1.0'
+           memory: 3G
         reservations:
-          cpus: '0.35'
-          memory: 512M
+           cpus: '0.5'
+           memory: 1G
     restart: unless-stopped
 
 volumes:
