@@ -9,6 +9,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 
 namespace Mangati.App.Server
@@ -78,8 +80,11 @@ namespace Mangati.App.Server
             .AddDefaultTokenProviders();
 
             // Configure JWT Authentication
+
             var jwtSettings = builder.Configuration.GetSection("JwtSettings");
             var key = Encoding.ASCII.GetBytes(jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT Secret Key is not configured"));
+
+
 
             builder.Services.AddAuthentication(options =>
             {
@@ -98,9 +103,36 @@ namespace Mangati.App.Server
                     ValidateAudience = true,
                     ValidIssuer = jwtSettings["ValidIssuer"],
                     ValidAudience = jwtSettings["ValidAudience"],
-                    ClockSkew = TimeSpan.FromMinutes(5)
+                    ClockSkew = TimeSpan.FromMinutes(5),
+
+                    // ADD THIS: Map role claims correctly
+                    RoleClaimType = ClaimTypes.Role,
+                    NameClaimType = ClaimTypes.Name
+                };
+
+                // ADD THIS: Handle token validation events for debugging
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = context =>
+                    {
+                        // Log claims for debugging
+                        var claims = context.Principal.Claims.ToList();
+                        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                        logger.LogInformation("Token validated. Claims: {Claims}",
+                            string.Join(", ", claims.Select(c => $"{c.Type}={c.Value}")));
+                        return Task.CompletedTask;
+                    },
+                    OnAuthenticationFailed = context =>
+                    {
+                        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+                        logger.LogError("Authentication failed: {Error}", context.Exception.Message);
+                        return Task.CompletedTask;
+                    }
                 };
             });
+
+            JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear(); // Clear default mappings
+            JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
 
             // Add authorization
             builder.Services.AddAuthorization(options =>
