@@ -1,6 +1,7 @@
 using Mangati.App.Server.Data;
 using Mangati.App.Server.Models.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -16,8 +17,44 @@ namespace Mangati.App.Server
             var builder = WebApplication.CreateBuilder(args);
 
             // Add database context
-            builder.Services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseInMemoryDatabase("MangatiApp")); // Using in-memory database for development
+
+            if (builder.Environment.IsDevelopment() && !builder.Configuration.GetValue<bool>("UseDockerDatabase", false))
+            {
+                builder.Services.AddDbContext<ApplicationDbContext>(options =>
+                    options.UseInMemoryDatabase("MangatiApp"));
+            }
+            else
+            {
+                builder.Services.AddDbContext<ApplicationDbContext>(options =>
+                {
+                    options.UseSqlServer(
+                        builder.Configuration.GetConnectionString("DefaultConnection"),
+                        sqlServerOptions =>
+                        {
+                            sqlServerOptions.EnableRetryOnFailure(
+                                maxRetryCount: 10,
+                                maxRetryDelay: TimeSpan.FromSeconds(30),
+                                errorNumbersToAdd: null);
+
+                            // Set command timeout to 30 seconds
+                            sqlServerOptions.CommandTimeout(30);
+
+                            // Enable detailed errors in development
+                            if (builder.Environment.IsDevelopment())
+                            {
+                                sqlServerOptions.EnableDetailedErrors();
+                                sqlServerOptions.EnableSensitiveDataLogging();
+                            }
+                        });
+                });
+
+                // Add health check for database
+                builder.Services.AddHealthChecks()
+                    .AddSqlServer(
+                        builder.Configuration.GetConnectionString("DefaultConnection"),
+                        name: "database",
+                        tags: new[] { "db", "sql", "sqlserver" });
+            }
 
             // Add Identity
             builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -147,6 +184,30 @@ namespace Mangati.App.Server
 
             app.MapControllers();
             app.MapFallbackToFile("/index.html");
+
+            app.MapHealthChecks("/health", new HealthCheckOptions
+            {
+                ResponseWriter = async (context, report) =>
+                {
+                    context.Response.ContentType = "application/json";
+
+                    var response = new
+                    {
+                        Status = report.Status.ToString(),
+                        Duration = report.TotalDuration,
+                        Info = report.Entries.Select(e => new
+                        {
+                            Key = e.Key,
+                            Status = e.Value.Status.ToString(),
+                            Duration = e.Value.Duration,
+                            Description = e.Value.Description,
+                            Data = e.Value.Data
+                        })
+                    };
+
+                    await context.Response.WriteAsJsonAsync(response);
+                }
+            });
 
             // Ensure database is created and migrations are applied
             using (var scope = app.Services.CreateScope())

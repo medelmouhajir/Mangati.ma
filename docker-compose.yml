@@ -6,12 +6,14 @@ services:
     build:
       context: .
       dockerfile: Mangati.App/Mangati.App.Server/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
       - ASPNETCORE_URLS=http://+:5000;https://+:5001;http://+:8080;https://+:8081
       - ConnectionStrings__DefaultConnection=Server=db;Database=MangatiApp;User Id=sa;Password=${DB_PASSWORD:-YourStr0ngP@ssw0rd};TrustServerCertificate=True
-    depends_on:
-      - db
+      - UseDockerDatabase=true
     ports:
       - "5000:5000"  # New HTTP port
       - "5001:5001"  # New HTTPS port
@@ -54,6 +56,12 @@ services:
       - "1433:1433"
     volumes:
       - mangati-db:/var/opt/mssql
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "$${MSSQL_SA_PASSWORD}" -Q "SELECT 1" -b -1
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
     deploy:
       resources:
         limits:

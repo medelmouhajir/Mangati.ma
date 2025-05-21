@@ -1,10 +1,12 @@
 ﻿using Mangati.App.Server.Models.Users;
+using System.ComponentModel.DataAnnotations;
 
 namespace Mangati.App.Server.Models.Common
 {
     public class ViewerSettings
     {
-        // PK is same as UserId for one-to-one
+
+        [Key]
         public string ApplicationUserId { get; set; }
         public virtual ApplicationUser? User { get; set; }
 

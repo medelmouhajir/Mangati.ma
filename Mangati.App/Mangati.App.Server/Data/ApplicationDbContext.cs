@@ -60,10 +60,15 @@ namespace Mangati.App.Server.Data
                 .HasKey(rp => new { rp.ApplicationUserId, rp.ChapterId });
 
             // Configure one-to-one relationships
-            builder.Entity<ViewerSettings>()
-                .HasOne(vs => vs.User)
-                .WithOne(u => u.ViewerSettings)
-                .HasForeignKey<ViewerSettings>(vs => vs.ApplicationUserId);
+            builder.Entity<ViewerSettings>(entity =>
+            {
+                entity.HasKey(e => e.ApplicationUserId);
+
+                entity.HasOne(vs => vs.User)
+                    .WithOne(u => u.ViewerSettings)
+                    .HasForeignKey<ViewerSettings>(vs => vs.ApplicationUserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
 
             builder.Entity<UserSubscription>()
                 .HasOne(us => us.User)
