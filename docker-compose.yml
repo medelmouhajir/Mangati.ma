@@ -1,0 +1,6 @@
+services:
+  mangati.app.server:
+    image: ${DOCKER_REGISTRY-}mangatiappserver
+    build:
+      context: .
+      dockerfile: Mangati.App/Mangati.App.Server/Dockerfile

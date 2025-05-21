@@ -1,0 +1,6 @@
+@Mangati.App.Server_HostAddress = http://localhost:5190
+
+GET {{Mangati.App.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
