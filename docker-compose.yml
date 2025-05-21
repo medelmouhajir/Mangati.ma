@@ -28,6 +28,7 @@ services:
           memory: 256M
     restart: unless-stopped
 
+  
   mangati.app.client:
     build:
       context: .
@@ -35,7 +36,10 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - mangati.app.server
+      mangati.app.server:
+        condition: service_started
+    environment:
+      - VITE_API_BASE_URL=http://mangati.app.server:8080/api
     deploy:
       resources:
         limits:
