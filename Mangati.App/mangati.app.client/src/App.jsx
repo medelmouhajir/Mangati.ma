@@ -18,36 +18,8 @@ const Browse = () => <h1>Browse Manga</h1>;
 const NotFound = () => <h1>404 - Page Not Found</h1>;
 
 function App() {
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        // Simulate API check to ensure backend is available
-        const checkApi = async () => {
-            try {
-                // Simple fetch to check if API is reachable
-                // In a real app, we would call a health endpoint
-                await fetch('/api/weatherforecast')
-                    .then(res => {
-                        console.log('API Status:', res.status);
-                        setIsLoading(false);
-                    });
-            } catch (error) {
-                console.error('API connection error:', error);
-                setIsLoading(false);
-            }
-        };
-
-        checkApi();
-    }, []);
-
-    if (isLoading) {
-        return (
-            <div className="loading-container">
-                <div className="loading-spinner"></div>
-                <p>Loading Mangati App...</p>
-            </div>
-        );
-    }
+    // Remove the weatherforecast check and just set loading to false
+    const [isLoading, setIsLoading] = useState(false);
 
     return (
         <div className="app">
@@ -64,11 +36,18 @@ function App() {
             </header>
 
             <main className="main-content">
-                <Routes>
-                    <Route path="/" element={<Home />} />
-                    <Route path="/browse" element={<Browse />} />
-                    <Route path="*" element={<NotFound />} />
-                </Routes>
+                {isLoading ? (
+                    <div className="loading-container">
+                        <div className="loading-spinner"></div>
+                        <p>Loading Mangati App...</p>
+                    </div>
+                ) : (
+                    <Routes>
+                        <Route path="/" element={<Home />} />
+                        <Route path="/browse" element={<Browse />} />
+                        <Route path="*" element={<NotFound />} />
+                    </Routes>
+                )}
             </main>
 
             <footer className="app-footer">

@@ -1,4 +1,3 @@
-
 // src/api/apiClient.js
 import axios from 'axios';
 
@@ -8,6 +7,8 @@ const apiClient = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    // Add a timeout to prevent hanging requests
+    timeout: 10000, // 10 seconds
 });
 
 // Add request interceptor for auth
@@ -27,19 +28,27 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
     (response) => response,
     async (error) => {
+        // Get the original request
         const originalRequest = error.config;
 
         // Handle 401 Unauthorized errors
         if (error.response?.status === 401 && !originalRequest._retry) {
             originalRequest._retry = true;
 
-            // Try to refresh token or log out the user
-            // If token refresh functionality is needed in the future,
-            // this would be the place to implement it
-
-            // For now, simply log the user out
+            // Log the user out immediately
             localStorage.removeItem('token');
-            window.location.href = '/login';
+            localStorage.removeItem('user');
+
+            // Only redirect if not on login page already
+            if (!window.location.pathname.includes('/login')) {
+                window.location.href = '/login';
+            }
+        }
+
+        // Handle network errors more gracefully
+        if (!error.response) {
+            console.error('Network error - API might be unavailable', error.message);
+            // You can dispatch a global notification here if needed
         }
 
         return Promise.reject(error);

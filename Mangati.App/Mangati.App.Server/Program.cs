@@ -110,14 +110,23 @@ namespace Mangati.App.Server
             });
 
             // Add CORS
+
             builder.Services.AddCors(options =>
             {
                 options.AddDefaultPolicy(policy =>
                 {
-                    policy.WithOrigins(builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>())
-                          .AllowAnyMethod()
-                          .AllowAnyHeader()
-                          .AllowCredentials();
+                    // Make sure to include your development URLs
+                    policy.WithOrigins(
+                            "http://localhost:53109", // Vite dev server
+                            "http://localhost:5173",  // Alternative Vite port
+                            "http://localhost",       // Docker/production
+                            "https://localhost:53109",
+                            "https://localhost:5173",
+                            "https://localhost"
+                        )
+                        .AllowAnyMethod()
+                        .AllowAnyHeader()
+                        .AllowCredentials();
                 });
             });
 
