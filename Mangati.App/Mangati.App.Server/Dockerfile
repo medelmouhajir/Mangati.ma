@@ -8,6 +8,10 @@ EXPOSE 8080
 EXPOSE 8081
 
 
+ENV ASPNETCORE_ENVIRONMENT=Development
+ENV DOTNET_USE_POLLING_FILE_WATCHER=1
+ENV VSTEST_HOST_DEBUG=1
+
 # This stage is used to build the service project
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG BUILD_CONFIGURATION=Release
