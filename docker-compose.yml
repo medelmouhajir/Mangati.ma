@@ -57,16 +57,16 @@ services:
     volumes:
       - mangati-db:/var/opt/mssql
     healthcheck:
-      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "$${MSSQL_SA_PASSWORD}" -Q "SELECT 1" -b -1
-      interval: 10s
-      timeout: 3s
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "${DB_PASSWORD:-YourStr0ngP@ssw0rd}" -Q "SELECT 1" -b -1
+      interval: 15s
+      timeout: 5s
       retries: 10
-      start_period: 10s
+      start_period: 20s
     deploy:
       resources:
         limits:
           cpus: '0.70'
-          memory: 1G
+          memory: 2G
         reservations:
           cpus: '0.35'
           memory: 512M
