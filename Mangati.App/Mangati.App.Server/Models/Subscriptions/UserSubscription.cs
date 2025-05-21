@@ -1,10 +1,13 @@
 ﻿using Mangati.App.Server.Models.Users;
+using System.ComponentModel.DataAnnotations;
 
 namespace Mangati.App.Server.Models.Subscriptions
 {
     public class UserSubscription
     {
-        // PK is same as UserId for one-to-one
+        [Key]
+        public Guid UserSubscriptionId { get; set; }
+
         public string ApplicationUserId { get; set; }
         public virtual ApplicationUser? User { get; set; }
 

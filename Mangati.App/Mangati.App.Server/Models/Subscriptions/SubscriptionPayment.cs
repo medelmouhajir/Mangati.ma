@@ -5,7 +5,8 @@ namespace Mangati.App.Server.Models.Subscriptions
 {
     public class SubscriptionPayment
     {
-        public int PaymentId { get; set; }
+        [Key]
+        public Guid PaymentId { get; set; }
 
         public string ApplicationUserId { get; set; }
         public virtual ApplicationUser? User { get; set; }

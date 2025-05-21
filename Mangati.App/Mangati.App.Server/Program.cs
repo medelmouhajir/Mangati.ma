@@ -115,13 +115,17 @@ namespace Mangati.App.Server
             {
                 options.AddDefaultPolicy(policy =>
                 {
-                    // Make sure to include your development URLs
+                    // Make sure client URL is included here
                     policy.WithOrigins(
-                            "http://localhost:53109", // Vite dev server
-                            "http://localhost:5173",  // Alternative Vite port
-                            "http://localhost",       // Docker/production
+                            "http://localhost:53109",
+                            "http://localhost:5173",
+                            "http://localhost:3000",
+                            "http://localhost:5000",
+                            "http://localhost",
                             "https://localhost:53109",
                             "https://localhost:5173",
+                            "https://localhost:3000",
+                            "https://localhost:5000",
                             "https://localhost"
                         )
                         .AllowAnyMethod()

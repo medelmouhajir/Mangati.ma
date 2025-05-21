@@ -6,7 +6,8 @@ namespace Mangati.App.Server.Models.Reports
 {
     public class ContentReport
     {
-        public int ReportId { get; set; }
+        [Key]
+        public string ReportId { get; set; }
 
         public string ReportedByUserId { get; set; }
         public virtual ApplicationUser? ReportedBy { get; set; }

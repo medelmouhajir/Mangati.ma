@@ -12,7 +12,7 @@ import Profile from './pages/Profile';
 import Upload from './pages/Upload';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import NotFound from './pages/NotFound';
+import NotFound from './components/common/NotFound';
 
 // Protected route wrapper
 const ProtectedRoute = ({ children, requiredRole }) => {
