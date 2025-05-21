@@ -4,6 +4,7 @@ import plugin from '@vitejs/plugin-react';
 import fs from 'fs';
 import path from 'path';
 import { env } from 'process';
+import { spawnSync } from 'child_process';
 
 const baseFolder =
     env.APPDATA !== undefined && env.APPDATA !== ''
@@ -25,7 +26,6 @@ const setupHttps = () => {
     }
 
     if (!fs.existsSync(certFilePath) || !fs.existsSync(keyFilePath)) {
-        const { spawnSync } = require('child_process');
         if (0 !== spawnSync('dotnet', [
             'dev-certs',
             'https',

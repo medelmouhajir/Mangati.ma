@@ -1,9 +1,12 @@
 using Mangati.App.Server.Data;
 using Mangati.App.Server.Models.Users;
+using Mangati.App.Server.Services;
+using Mangati.App.Server.Services.Implementations;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
@@ -17,7 +20,6 @@ namespace Mangati.App.Server
             var builder = WebApplication.CreateBuilder(args);
 
             // Add database context
-
             if (builder.Environment.IsDevelopment() && !builder.Configuration.GetValue<bool>("UseDockerDatabase", false))
             {
                 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -27,31 +29,29 @@ namespace Mangati.App.Server
             {
                 builder.Services.AddDbContext<ApplicationDbContext>(options =>
                 {
-                    options.UseSqlServer(
-                        builder.Configuration.GetConnectionString("DefaultConnection"),
-                        sqlServerOptions =>
-                        {
-                            sqlServerOptions.EnableRetryOnFailure(
-                                maxRetryCount: 10,
-                                maxRetryDelay: TimeSpan.FromSeconds(30),
-                                errorNumbersToAdd: null);
+                    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+                    options.UseSqlServer(connectionString, sqlServerOptions =>
+                    {
+                        sqlServerOptions.EnableRetryOnFailure(
+                            maxRetryCount: 10,
+                            maxRetryDelay: TimeSpan.FromSeconds(30),
+                            errorNumbersToAdd: null);
 
-                            // Set command timeout to 30 seconds
-                            sqlServerOptions.CommandTimeout(30);
+                        // Set command timeout to 30 seconds
+                        sqlServerOptions.CommandTimeout(30);
+                    });
 
-                            // Enable detailed errors in development
-                            if (builder.Environment.IsDevelopment())
-                            {
-                                sqlServerOptions.EnableDetailedErrors();
-                                sqlServerOptions.EnableSensitiveDataLogging();
-                            }
-                        });
+                    // Enable detailed errors in development
+                    if (builder.Environment.IsDevelopment())
+                    {
+                        options.EnableDetailedErrors();
+                        options.EnableSensitiveDataLogging();
+                    }
                 });
 
                 // Add health check for database
                 builder.Services.AddHealthChecks()
-                    .AddSqlServer(
-                        builder.Configuration.GetConnectionString("DefaultConnection"),
+                    .AddDbContextCheck<ApplicationDbContext>(
                         name: "database",
                         tags: new[] { "db", "sql", "sqlserver" });
             }
@@ -121,6 +121,9 @@ namespace Mangati.App.Server
                 });
             });
 
+            // Register IStorageService
+            builder.Services.AddScoped<IStorageService, LocalStorageService>();
+
             // Add controllers and API explorer
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
@@ -176,6 +179,13 @@ namespace Mangati.App.Server
             app.UseHttpsRedirection();
             app.UseDefaultFiles();
             app.UseStaticFiles();
+
+            // Create wwwroot/uploads directory if it doesn't exist
+            var uploadsPath = Path.Combine(app.Environment.WebRootPath, "uploads");
+            if (!Directory.Exists(uploadsPath))
+            {
+                Directory.CreateDirectory(uploadsPath);
+            }
 
             app.UseCors();
 
