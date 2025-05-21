@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mangaApi } from '../api/mangaApi';
+import { filtersApi } from '../api/filtersApi';
 import { useAuth } from '../hooks/useAuth';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
@@ -19,8 +20,11 @@ const Upload = () => {
 
     const [languages, setLanguages] = useState([]);
     const [tags, setTags] = useState([]);
+    const [newTagInput, setNewTagInput] = useState('');
+    const [newLanguageInput, setNewLanguageInput] = useState('');
 
     const [loading, setLoading] = useState(false);
+    const [filtersLoading, setFiltersLoading] = useState(true);
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(false);
 
@@ -36,35 +40,22 @@ const Upload = () => {
             return;
         }
 
-        // Fetch languages and tags data
-        const fetchData = async () => {
+        // Fetch filters (languages and tags) from API
+        const fetchFilters = async () => {
+            setFiltersLoading(true);
             try {
-                // In a real app, you would fetch languages and tags from API endpoints
-                // For now, just set placeholder data
-                setLanguages([
-                    { id: 1, name: 'English' },
-                    { id: 2, name: 'Japanese' },
-                    { id: 3, name: 'Spanish' },
-                    { id: 4, name: 'French' },
-                ]);
-
-                setTags([
-                    { id: 1, name: 'Action' },
-                    { id: 2, name: 'Adventure' },
-                    { id: 3, name: 'Comedy' },
-                    { id: 4, name: 'Drama' },
-                    { id: 5, name: 'Fantasy' },
-                    { id: 6, name: 'Horror' },
-                    { id: 7, name: 'Romance' },
-                    { id: 8, name: 'Sci-Fi' },
-                ]);
+                const filters = await filtersApi.getAllFilters();
+                setLanguages(filters.languages || []);
+                setTags(filters.tags || []);
             } catch (err) {
-                console.error('Failed to fetch form data:', err);
+                console.error('Failed to fetch filters:', err);
                 setError('Failed to load languages and tags. Please try again later.');
+            } finally {
+                setFiltersLoading(false);
             }
         };
 
-        fetchData();
+        fetchFilters();
     }, [isAuthenticated, currentUser, navigate]);
 
     const handleInputChange = (e) => {
@@ -106,6 +97,58 @@ const Upload = () => {
                 };
             }
         });
+    };
+
+    const handleCreateTag = async (e) => {
+        e.preventDefault();
+        if (!newTagInput.trim()) return;
+
+        try {
+            setFiltersLoading(true);
+            const newTag = await filtersApi.createTag({ name: newTagInput.trim() });
+            setTags([...tags, newTag]);
+            // Automatically select the new tag
+            setFormData(prev => ({
+                ...prev,
+                tagIds: [...prev.tagIds, newTag.id]
+            }));
+            setNewTagInput('');
+        } catch (err) {
+            const errorMessage = err.response?.data?.message || 'Failed to create tag';
+            setError(errorMessage);
+            console.error('Error creating tag:', err);
+        } finally {
+            setFiltersLoading(false);
+        }
+    };
+
+    const handleCreateLanguage = async (e) => {
+        e.preventDefault();
+        if (!newLanguageInput.trim()) return;
+
+        // Only admin can create languages
+        if (!currentUser.roles.includes('Admin')) {
+            setError('Only administrators can add new languages');
+            return;
+        }
+
+        try {
+            setFiltersLoading(true);
+            const newLanguage = await filtersApi.createLanguage({ name: newLanguageInput.trim() });
+            setLanguages([...languages, newLanguage]);
+            // Automatically select the new language
+            setFormData(prev => ({
+                ...prev,
+                languageIds: [...prev.languageIds, newLanguage.id]
+            }));
+            setNewLanguageInput('');
+        } catch (err) {
+            const errorMessage = err.response?.data?.message || 'Failed to create language';
+            setError(errorMessage);
+            console.error('Error creating language:', err);
+        } finally {
+            setFiltersLoading(false);
+        }
     };
 
     const handleSubmit = async (e) => {
@@ -158,7 +201,7 @@ const Upload = () => {
         }
     };
 
-    if (loading) {
+    if (loading || filtersLoading) {
         return <LoadingSpinner />;
     }
 
@@ -169,6 +212,7 @@ const Upload = () => {
             {error && (
                 <div className="error-message">
                     {error}
+                    <button className="close-error" onClick={() => setError(null)}>×</button>
                 </div>
             )}
 
@@ -237,6 +281,25 @@ const Upload = () => {
                             </label>
                         ))}
                     </div>
+
+                    {currentUser.roles.includes('Admin') && (
+                        <div className="add-new-item">
+                            <input
+                                type="text"
+                                value={newLanguageInput}
+                                onChange={(e) => setNewLanguageInput(e.target.value)}
+                                placeholder="Add new language..."
+                            />
+                            <button
+                                type="button"
+                                onClick={handleCreateLanguage}
+                                disabled={!newLanguageInput.trim()}
+                                className="add-btn"
+                            >
+                                Add
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 <div className="form-group">
@@ -252,6 +315,23 @@ const Upload = () => {
                                 {tag.name}
                             </label>
                         ))}
+                    </div>
+
+                    <div className="add-new-item">
+                        <input
+                            type="text"
+                            value={newTagInput}
+                            onChange={(e) => setNewTagInput(e.target.value)}
+                            placeholder="Add new tag..."
+                        />
+                        <button
+                            type="button"
+                            onClick={handleCreateTag}
+                            disabled={!newTagInput.trim()}
+                            className="add-btn"
+                        >
+                            Add
+                        </button>
                     </div>
                 </div>
 

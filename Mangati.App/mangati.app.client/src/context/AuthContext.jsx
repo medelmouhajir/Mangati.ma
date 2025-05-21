@@ -12,33 +12,23 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         // Try to load user from localStorage first
         const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-            setCurrentUser(JSON.parse(storedUser));
-        }
+        const token = localStorage.getItem('token');
 
-        // Check if token exists and fetch current user info
-        const fetchUser = async () => {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                setLoading(false);
-                return;
-            }
+        if (storedUser && token) {
+            // Check if token is expired before setting the user
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const expiry = payload.exp * 1000; // Convert to milliseconds
 
-            try {
-                const userData = await authApi.getCurrentUser();
-                setCurrentUser(userData);
-                localStorage.setItem('user', JSON.stringify(userData));
-            } catch (err) {
-                console.error('Failed to fetch user:', err);
-                setError('Authentication failed. Please log in again.');
+            if (Date.now() < expiry) {
+                setCurrentUser(JSON.parse(storedUser));
+            } else {
+                // Token is expired, clear it
                 localStorage.removeItem('token');
                 localStorage.removeItem('user');
-            } finally {
-                setLoading(false);
             }
-        };
+        }
 
-        fetchUser();
+        setLoading(false);
     }, []);
 
     const login = async (email, password) => {

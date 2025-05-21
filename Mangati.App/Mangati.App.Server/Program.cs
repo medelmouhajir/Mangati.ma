@@ -98,7 +98,7 @@ namespace Mangati.App.Server
                     ValidateAudience = true,
                     ValidIssuer = jwtSettings["ValidIssuer"],
                     ValidAudience = jwtSettings["ValidAudience"],
-                    ClockSkew = TimeSpan.Zero
+                    ClockSkew = TimeSpan.FromMinutes(5)
                 };
             });
 
