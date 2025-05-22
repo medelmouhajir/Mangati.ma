@@ -139,13 +139,19 @@ namespace Mangati.App.Server
                 };
             });
 
+            builder.Services.Configure<IdentityOptions>(options =>
+            {
+                // Make role names case insensitive
+                options.ClaimsIdentity.RoleClaimType = "role";
+                options.ClaimsIdentity.UserNameClaimType = JwtRegisteredClaimNames.UniqueName;
+            });
 
             // Add authorization
-            builder.Services.AddAuthorization(options =>
-            {
-                options.AddPolicy("RequireAdminRole", policy => policy.RequireRole("Admin"));
-                options.AddPolicy("RequireWriterRole", policy => policy.RequireRole("Writer"));
-            });
+            //builder.Services.AddAuthorization(options =>
+            //{
+            //    options.AddPolicy("RequireAdminRole", policy => policy.RequireRole("Admin"));
+            //    options.AddPolicy("RequireWriterRole", policy => policy.RequireRole("Writer"));
+            //});
 
             // Add CORS
 
