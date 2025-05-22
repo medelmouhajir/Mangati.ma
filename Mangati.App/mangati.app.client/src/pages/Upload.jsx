@@ -3,12 +3,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { mangaApi } from '../api/mangaApi';
 import { filtersApi } from '../api/filtersApi';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const Upload = () => {
     const navigate = useNavigate();
-    const { isAuthenticated, currentUser, loading: authLoading } = useAuth();
+    const { isAuthenticated, currentUser, loading: authLoading } = useAuthFetch();
 
     const [formData, setFormData] = useState({
         title: '',

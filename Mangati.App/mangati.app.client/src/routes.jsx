@@ -1,6 +1,6 @@
 // src/routes.jsx - Updated with DeniedAccess route
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useAuth } from './hooks/useAuth';
+import { useAuthFetch } from './hooks/useAuthFetch';
 import MainLayout from './components/layout/MainLayout';
 
 // Pages
@@ -15,10 +15,11 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import NotFound from './components/common/NotFound';
 import DeniedAccess from './components/common/DeniedAccess';
+import AuthDebug from './components/debug/AuthDebug';
 
 // Protected route wrapper
 const ProtectedRoute = ({ children, requiredRole, requiredRoles = [] }) => {
-    const { isAuthenticated, currentUser, loading } = useAuth();
+    const { isAuthenticated, currentUser, loading } = useAuthFetch();
 
     if (loading) {
         return <div>Loading...</div>;
@@ -52,6 +53,7 @@ const AppRoutes = () => {
                 <Route path="manga/:mangaId/chapter/:chapterId" element={<Reader />} />
                 <Route path="login" element={<Login />} />
                 <Route path="register" element={<Register />} />
+                <Route path="debug" element={<AuthDebug />} />
 
                 {/* Access denied route */}
                 <Route path="denied-access" element={<DeniedAccess />} />

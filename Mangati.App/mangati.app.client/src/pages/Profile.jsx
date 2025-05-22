@@ -2,13 +2,13 @@
 // src/pages/Profile.jsx
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 import { mangaApi } from '../api/mangaApi';
 import MangaCard from '../components/manga/MangaCard';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const Profile = () => {
-    const { currentUser, logout } = useAuth();
+    const { currentUser, logout } = useAuthFetch();
 
     const [activeTab, setActiveTab] = useState('my-manga');
     const [userManga, setUserManga] = useState([]);

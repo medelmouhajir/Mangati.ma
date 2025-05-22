@@ -2,11 +2,11 @@
 // src/pages/Register.jsx
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 
 const Register = () => {
     const navigate = useNavigate();
-    const { register, loading, error } = useAuth();
+    const { register, loading, error } = useAuthFetch();
 
     const [formData, setFormData] = useState({
         username: '',
@@ -79,7 +79,7 @@ const Register = () => {
             navigate('/');
         } catch (err) {
             console.error('Registration failed:', err);
-            // Error is handled by the useAuth hook
+            // Error is handled by the useAuthFetch hook
         }
     };
 

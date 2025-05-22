@@ -1,12 +1,12 @@
 ﻿// src/App.jsx with debug mode & token management
 import React, { useEffect, useState } from 'react';
 import AppRoutes from './routes';
-import { useAuth } from './hooks/useAuth';
+import { useAuthFetch } from './hooks/useAuthFetch';
 import { getTokenInfo } from './utils/authUtils';
 import './App.css';
 
 function App() {
-    const { currentUser, isAuthenticated } = useAuth();
+    const { currentUser, isAuthenticated } = useAuthFetch();
     const [debugVisible, setDebugVisible] = useState(false);
     const [tokenInfo, setTokenInfo] = useState({});
 

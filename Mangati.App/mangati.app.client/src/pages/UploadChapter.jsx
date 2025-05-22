@@ -4,13 +4,13 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { mangaApi } from '../api/mangaApi';
 import { chapterApi } from '../api/chapterApi';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const UploadChapter = () => {
     const { mangaId } = useParams();
     const navigate = useNavigate();
-    const { isAuthenticated, currentUser } = useAuth();
+    const { isAuthenticated, currentUser } = useAuthFetch();
 
     const [manga, setManga] = useState(null);
     const [formData, setFormData] = useState({

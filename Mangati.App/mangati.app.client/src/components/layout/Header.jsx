@@ -1,10 +1,10 @@
 // src/components/layout/Header.jsx
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuthFetch } from '../../hooks/useAuthFetch';
 
 const Header = () => {
-    const { isAuthenticated, currentUser, logout } = useAuth();
+    const { isAuthenticated, currentUser, logout } = useAuthFetch();
     const navigate = useNavigate();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [scrolled, setScrolled] = useState(false);

@@ -134,9 +134,12 @@ namespace Mangati.App.Server.Controllers
         [Authorize]
         public async Task<ActionResult<UserDto>> GetCurrentUser()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            // Use "sub" claim instead of ClaimTypes.NameIdentifier since we cleared default mappings
+            var userId = User.FindFirstValue("sub");
             if (string.IsNullOrEmpty(userId))
             {
+                _logger.LogWarning("No 'sub' claim found in token. Available claims: {Claims}",
+                    string.Join(", ", User.Claims.Select(c => $"{c.Type}={c.Value}")));
                 return Unauthorized();
             }
 
@@ -150,6 +153,43 @@ namespace Mangati.App.Server.Controllers
             return Ok(userDto);
         }
 
+        [HttpGet("debug")]
+        [Authorize]
+        public IActionResult DebugAuth()
+        {
+            var claims = User.Claims.Select(c => new { c.Type, c.Value }).ToList();
+            var roles = User.FindAll("role").Select(c => c.Value).ToList();
+
+            // Use "sub" instead of ClaimTypes.NameIdentifier
+            var userId = User.FindFirst("sub")?.Value;
+            var email = User.FindFirst("email")?.Value;
+            var username = User.FindFirst("unique_name")?.Value;
+
+            var debugInfo = new
+            {
+                IsAuthenticated = User.Identity.IsAuthenticated,
+                AuthenticationType = User.Identity.AuthenticationType,
+                Name = User.Identity.Name,
+                UserId = userId,
+                Email = email,
+                Username = username,
+                AllClaims = claims,
+                RoleClaims = roles,
+                IsInWriterRole = User.IsInRole("Writer"),
+                IsInAdminRole = User.IsInRole("Admin"),
+                IsInViewerRole = User.IsInRole("Viewer"),
+                // Test different case variations
+                IsInWriterRoleUppercase = User.IsInRole("WRITER"),
+                IsInWriterRoleLowercase = User.IsInRole("writer"),
+                ClaimsCount = claims.Count,
+                RoleClaimsCount = roles.Count
+            };
+
+            _logger.LogInformation("Debug auth called. User {UserId} with roles: {Roles}", userId, string.Join(", ", roles));
+
+            return Ok(debugInfo);
+        }
+
 
         private async Task<string> GenerateJwtTokenAsync(ApplicationUser user)
         {
@@ -159,18 +199,22 @@ namespace Mangati.App.Server.Controllers
 
             var roles = await _userManager.GetRolesAsync(user);
             var claims = new List<Claim>
-                        {
-                            new Claim(JwtRegisteredClaimNames.Sub, user.Id),
-                            new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
-                            new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-                        };
+    {
+        new Claim(JwtRegisteredClaimNames.Sub, user.Id),
+        new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName),
+        new Claim(JwtRegisteredClaimNames.Email, user.Email),
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+    };
 
-            // Add roles with consistent casing
+            // Add roles - KEEP ORIGINAL CASING (Remove ToUpperInvariant())
             foreach (var role in roles)
             {
-                claims.Add(new Claim("role", role.ToUpperInvariant())); // Standardize to uppercase
+                claims.Add(new Claim(ClaimTypes.Role, role)); // ← Fixed: No case conversion
             }
+
+            // Log the claims for debugging
+            _logger.LogInformation("Creating token for user {Username} with roles: {Roles}",
+                user.UserName, string.Join(", ", roles));
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
@@ -202,6 +246,22 @@ namespace Mangati.App.Server.Controllers
                 Roles = roles.ToList(),
                 CreatedAt = createdAt
             };
+        }
+
+
+
+        [HttpGet("test-writer")]
+        [Authorize(Roles = "Writer")]
+        public IActionResult TestWriter()
+        {
+            return Ok(new { Message = "Writer role access successful!", Time = DateTime.UtcNow });
+        }
+
+        [HttpGet("test-admin")]
+        [Authorize(Roles = "Admin , ADMIN")]
+        public IActionResult TestAdmin()
+        {
+            return Ok(new { Message = "Admin role access successful!", Time = DateTime.UtcNow });
         }
     }
 }

@@ -3,14 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { mangaApi } from '../api/mangaApi';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 import ChapterList from '../components/manga/ChapterList';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 
 const MangaView = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { isAuthenticated, currentUser } = useAuth();
+    const { isAuthenticated, currentUser } = useAuthFetch();
 
     const [manga, setManga] = useState(null);
     const [loading, setLoading] = useState(true);

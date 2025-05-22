@@ -1,12 +1,12 @@
 // src/pages/Login.jsx
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
+import { useAuthFetch } from '../hooks/useAuthFetch';
 
 const Login = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { login, loading, error } = useAuth();
+    const { login, loading, error } = useAuthFetch();
 
     // Get the redirect path from location state, or default to home
     const from = location.state?.from?.pathname || '/';
@@ -64,7 +64,7 @@ const Login = () => {
             navigate(from, { replace: true });
         } catch (err) {
             console.error('Login failed:', err);
-            // Error is handled by the useAuth hook
+            // Error is handled by the useAuthFetch hook
         }
     };
 

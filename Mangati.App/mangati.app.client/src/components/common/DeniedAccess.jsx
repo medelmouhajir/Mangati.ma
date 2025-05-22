@@ -1,12 +1,12 @@
 // src/components/common/DeniedAccess.jsx - Enhanced version
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuthFetch } from '../../hooks/useAuthFetch';
 import { useEffect, useState } from 'react';
 
 const DeniedAccess = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const { isAuthenticated, currentUser, logout } = useAuth();
+    const { isAuthenticated, currentUser, logout } = useAuthFetch();
 
     const [deniedInfo, setDeniedInfo] = useState({
         title: "Access Denied",

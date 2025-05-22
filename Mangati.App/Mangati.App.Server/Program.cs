@@ -38,12 +38,9 @@ namespace Mangati.App.Server
                             maxRetryCount: 10,
                             maxRetryDelay: TimeSpan.FromSeconds(30),
                             errorNumbersToAdd: null);
-
-                        // Set command timeout to 30 seconds
                         sqlServerOptions.CommandTimeout(30);
                     });
 
-                    // Enable detailed errors in development
                     if (builder.Environment.IsDevelopment())
                     {
                         options.EnableDetailedErrors();
@@ -51,7 +48,6 @@ namespace Mangati.App.Server
                     }
                 });
 
-                // Add health check for database
                 builder.Services.AddHealthChecks()
                     .AddDbContextCheck<ApplicationDbContext>(
                         name: "database",
@@ -61,105 +57,29 @@ namespace Mangati.App.Server
             // Add Identity
             builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
             {
-                // Password settings
                 options.Password.RequireDigit = true;
                 options.Password.RequireLowercase = true;
                 options.Password.RequireUppercase = true;
                 options.Password.RequireNonAlphanumeric = true;
                 options.Password.RequiredLength = 8;
 
-                // Lockout settings
                 options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
                 options.Lockout.MaxFailedAccessAttempts = 5;
                 options.Lockout.AllowedForNewUsers = true;
 
-                // User settings
                 options.User.RequireUniqueEmail = true;
             })
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders();
 
-            // Configure JWT Authentication
 
-            var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-            var key = Encoding.ASCII.GetBytes(jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT Secret Key is not configured"));
-
-
-            JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear(); // Clear default mappings
-            JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
-
-
-            builder.Services.AddAuthentication(options =>
-            {
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            })
-            .AddJwtBearer(options =>
-            {
-                options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
-                options.SaveToken = true;
-                options.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(key),
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidIssuer = jwtSettings["ValidIssuer"],
-                    ValidAudience = jwtSettings["ValidAudience"],
-                    ClockSkew = TimeSpan.FromMinutes(5),
-
-                    // Map claims correctly - use short names to match JWT standard
-                    RoleClaimType = "role",           // Use short name instead of ClaimTypes.Role
-                    NameClaimType = JwtRegisteredClaimNames.UniqueName
-                };
-
-                // Handle token validation events for debugging
-                options.Events = new JwtBearerEvents
-                {
-                    OnTokenValidated = context =>
-                    {
-                        // Log claims for debugging
-                        var claims = context.Principal.Claims.ToList();
-                        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-                        logger.LogInformation("Token validated. Claims: {Claims}",
-                            string.Join(", ", claims.Select(c => $"{c.Type}={c.Value}")));
-
-                        // Log role claims specifically
-                        var roleClaims = claims.Where(c => c.Type == "role").Select(c => c.Value);
-                        logger.LogInformation("Role claims found: {Roles}", string.Join(", ", roleClaims));
-
-                        return Task.CompletedTask;
-                    },
-                    OnAuthenticationFailed = context =>
-                    {
-                        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-                        logger.LogError("Authentication failed: {Error}", context.Exception.Message);
-                        return Task.CompletedTask;
-                    }
-                };
-            });
-
-            builder.Services.Configure<IdentityOptions>(options =>
-            {
-                // Make role names case insensitive
-                options.ClaimsIdentity.RoleClaimType = "role";
-                options.ClaimsIdentity.UserNameClaimType = JwtRegisteredClaimNames.UniqueName;
-            });
-
-            // Add authorization
-            //builder.Services.AddAuthorization(options =>
-            //{
-            //    options.AddPolicy("RequireAdminRole", policy => policy.RequireRole("Admin"));
-            //    options.AddPolicy("RequireWriterRole", policy => policy.RequireRole("Writer"));
-            //});
+            ConfigureJwtAuthentication(builder);
 
             // Add CORS
-
             builder.Services.AddCors(options =>
             {
                 options.AddDefaultPolicy(policy =>
                 {
-                    // Make sure client URL is included here
                     policy.WithOrigins(
                             "http://localhost:53109",
                             "http://localhost:5173",
@@ -178,15 +98,14 @@ namespace Mangati.App.Server
                 });
             });
 
-            // Register IStorageService
+            // Register services
             builder.Services.AddScoped<IStorageService, LocalStorageService>();
 
             // Add controllers and API explorer
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
 
-            // Add OpenAPI/Swagger
-            builder.Services.AddEndpointsApiExplorer();
+            // Add Swagger
             builder.Services.AddSwaggerGen(options =>
             {
                 options.SwaggerDoc("v1", new OpenApiInfo
@@ -237,27 +156,27 @@ namespace Mangati.App.Server
             app.UseDefaultFiles();
             app.UseStaticFiles();
 
-            // Create wwwroot/uploads directory if it doesn't exist
+            // Create uploads directory
             var uploadsPath = Path.Combine(app.Environment.WebRootPath, "uploads");
             if (!Directory.Exists(uploadsPath))
             {
                 Directory.CreateDirectory(uploadsPath);
             }
 
+            // CRITICAL: Middleware order matters!
             app.UseCors();
-
-            app.UseAuthentication();
+            app.UseAuthentication(); // MUST come before UseAuthorization
             app.UseAuthorization();
 
             app.MapControllers();
             app.MapFallbackToFile("/index.html");
 
+            // Health checks
             app.MapHealthChecks("/health", new HealthCheckOptions
             {
                 ResponseWriter = async (context, report) =>
                 {
                     context.Response.ContentType = "application/json";
-
                     var response = new
                     {
                         Status = report.Status.ToString(),
@@ -271,12 +190,11 @@ namespace Mangati.App.Server
                             Data = e.Value.Data
                         })
                     };
-
                     await context.Response.WriteAsJsonAsync(response);
                 }
             });
 
-            // Ensure database is created and migrations are applied
+            // Database seeding
             using (var scope = app.Services.CreateScope())
             {
                 var services = scope.ServiceProvider;
@@ -288,10 +206,7 @@ namespace Mangati.App.Server
 
                     context.Database.EnsureCreated();
 
-                    // Seed roles
                     SeedRoles(roleManager).Wait();
-
-                    // Seed admin user
                     SeedAdminUser(userManager).Wait();
                 }
                 catch (Exception ex)
@@ -300,6 +215,8 @@ namespace Mangati.App.Server
                     logger.LogError(ex, "An error occurred while seeding the database.");
                 }
             }
+
+            Console.WriteLine("Starting application...");
 
             app.Run();
         }
@@ -326,9 +243,51 @@ namespace Mangati.App.Server
                     EmailConfirmed = true
                 };
 
-                await userManager.CreateAsync(adminUser, "Admin123!@#"); // Change in production
+                await userManager.CreateAsync(adminUser, "Admin123!@#");
                 await userManager.AddToRoleAsync(adminUser, "Admin");
             }
+        }
+
+
+        private static void ConfigureJwtAuthentication(WebApplicationBuilder builder)
+        {
+            var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+            var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT Secret Key is not configured");
+
+            builder.Services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            })
+            .AddJwtBearer(options =>
+            {
+                options.RequireHttpsMetadata = !builder.Environment.IsDevelopment(); // Only require HTTPS in production
+                options.SaveToken = true;
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(secretKey)),
+                    ValidateIssuer = false, // Set to true in production and specify issuer
+                    ValidateAudience = false, // Set to true in production and specify audience
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.Zero // Remove default 5-minute tolerance for token expiration
+                };
+
+                // For signalR support (if needed later)
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+                        var path = context.HttpContext.Request.Path;
+                        if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                        {
+                            context.Token = accessToken;
+                        }
+                        return Task.CompletedTask;
+                    }
+                };
+            });
         }
     }
 }
