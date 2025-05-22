@@ -1,91 +1,57 @@
 // src/hooks/useAuthFetch.js
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import authService from '../api/authService';
 
 /**
- * Custom hook for making authenticated API requests with automatic token refresh
+ * Custom hook that provides authentication state and actions
+ * This is a simple wrapper around useAuth for backward compatibility
  */
-const useAuthFetch2 = () => {
-    const { user, refreshToken } = useAuth();
-    const navigate = useNavigate();
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+export const useAuthFetch = () => {
+    const authContext = useAuth();
 
-    /**
-     * Execute authenticated fetch request with token refresh
-     * @param {string} url - API URL to fetch
-     * @param {Object} options - Fetch options
-     * @returns {Promise} Response data or error
-     */
-    const authFetch = useCallback(async (url, options = {}) => {
-        setLoading(true);
-        setError(null);
+    // Return the auth context with some additional computed properties for convenience
+    return {
+        // Core auth state
+        ...authContext,
 
-        try {
-            // Add auth header if not already present
-            const headers = options.headers || {};
+        // Backward compatibility aliases
+        currentUser: authContext.user,
+        isAuthenticated: authContext.isAuthenticated(),
 
-            if (user && user.token && !headers.Authorization) {
-                headers.Authorization = `Bearer ${user.token}`;
-            }
+        // Convenience methods
+        isAdmin: () => authContext.hasRole('Admin'),
+        isWriter: () => authContext.hasRole('Writer'),
+        isViewer: () => authContext.hasRole('Viewer'),
 
-            // Make the API request
-            const response = await fetch(url, {
-                ...options,
-                headers
-            });
+        // Check multiple roles
+        canWrite: () => authContext.hasAnyRole(['Writer', 'Admin']),
+        canAdmin: () => authContext.hasRole('Admin'),
 
-            // Handle 401 Unauthorized errors
-            if (response.status === 401) {
-                // Try to refresh the token
-                const refreshed = await refreshToken();
+        // Role checking utilities
+        hasRole: authContext.hasRole,
+        hasAnyRole: authContext.hasAnyRole,
 
-                if (refreshed) {
-                    // Retry the request with the new token
-                    const newUser = authService.getCurrentUser();
-                    const newHeaders = {
-                        ...headers,
-                        Authorization: `Bearer ${newUser.token}`
-                    };
+        // User info getters
+        getUserId: () => authContext.user?.id,
+        getUsername: () => authContext.user?.username,
+        getUserEmail: () => authContext.user?.email,
+        getUserRoles: () => authContext.user?.roles || [],
 
-                    const retryResponse = await fetch(url, {
-                        ...options,
-                        headers: newHeaders
-                    });
+        // Authentication status
+        isLoading: authContext.loading,
+        isInitialized: authContext.isInitialized,
+        authError: authContext.error,
 
-                    if (!retryResponse.ok) {
-                        throw new Error(`Request failed with status: ${retryResponse.status}`);
-                    }
+        // Actions (aliased for clarity)
+        signIn: authContext.login,
+        signUp: authContext.register,
+        signOut: authContext.logout,
+        refreshAuth: authContext.refreshToken,
+        clearAuthError: authContext.clearError,
 
-                    setLoading(false);
-                    return await retryResponse.json();
-                } else {
-                    // Token refresh failed, redirect to login
-                    navigate('/login', {
-                        state: { from: window.location.pathname, message: 'Your session expired. Please login again.' }
-                    });
-                    throw new Error('Authentication failed. Please login again.');
-                }
-            }
-
-            // Handle other errors
-            if (!response.ok) {
-                throw new Error(`Request failed with status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            setLoading(false);
-            return data;
-        } catch (err) {
-            setError(err.message || 'An error occurred');
-            setLoading(false);
-            throw err;
-        }
-    }, [user, refreshToken, navigate]);
-
-    return { authFetch, loading, error, setError };
+        // Update user data
+        updateUserData: authContext.updateUser
+    };
 };
 
-export const useAuthFetch = useAuthFetch2;
+// Export default for easier imports
+export default useAuthFetch;

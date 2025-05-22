@@ -35,6 +35,7 @@ const Login = () => {
     useEffect(() => {
         if (isAuthenticated) {
             // Clean up redirect path from session storage
+            console.log(('redirectAfterLogin' + isAuthenticated));
             sessionStorage.removeItem('redirectAfterLogin');
             navigate(redirectPath, { replace: true });
         }
