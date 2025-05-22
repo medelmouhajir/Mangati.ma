@@ -85,6 +85,9 @@ namespace Mangati.App.Server
             var key = Encoding.ASCII.GetBytes(jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT Secret Key is not configured"));
 
 
+            JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear(); // Clear default mappings
+            JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
+
 
             builder.Services.AddAuthentication(options =>
             {
@@ -105,12 +108,12 @@ namespace Mangati.App.Server
                     ValidAudience = jwtSettings["ValidAudience"],
                     ClockSkew = TimeSpan.FromMinutes(5),
 
-                    // ADD THIS: Map role claims correctly
-                    RoleClaimType = ClaimTypes.Role,
-                    NameClaimType = ClaimTypes.Name
+                    // Map claims correctly - use short names to match JWT standard
+                    RoleClaimType = "role",           // Use short name instead of ClaimTypes.Role
+                    NameClaimType = JwtRegisteredClaimNames.UniqueName
                 };
 
-                // ADD THIS: Handle token validation events for debugging
+                // Handle token validation events for debugging
                 options.Events = new JwtBearerEvents
                 {
                     OnTokenValidated = context =>
@@ -120,6 +123,11 @@ namespace Mangati.App.Server
                         var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
                         logger.LogInformation("Token validated. Claims: {Claims}",
                             string.Join(", ", claims.Select(c => $"{c.Type}={c.Value}")));
+
+                        // Log role claims specifically
+                        var roleClaims = claims.Where(c => c.Type == "role").Select(c => c.Value);
+                        logger.LogInformation("Role claims found: {Roles}", string.Join(", ", roleClaims));
+
                         return Task.CompletedTask;
                     },
                     OnAuthenticationFailed = context =>
@@ -131,8 +139,6 @@ namespace Mangati.App.Server
                 };
             });
 
-            JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear(); // Clear default mappings
-            JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
 
             // Add authorization
             builder.Services.AddAuthorization(options =>

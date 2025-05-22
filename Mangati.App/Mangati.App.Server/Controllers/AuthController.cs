@@ -150,6 +150,7 @@ namespace Mangati.App.Server.Controllers
             return Ok(userDto);
         }
 
+
         private async Task<string> GenerateJwtTokenAsync(ApplicationUser user)
         {
             var jwtSettings = _configuration.GetSection("JwtSettings");
@@ -158,17 +159,17 @@ namespace Mangati.App.Server.Controllers
 
             var roles = await _userManager.GetRolesAsync(user);
             var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id),
-                new Claim(ClaimTypes.Name, user.UserName),
-                new Claim(ClaimTypes.Email, user.Email),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
+    {
+        new Claim(JwtRegisteredClaimNames.Sub, user.Id),        // Use 'sub' instead of ClaimTypes.NameIdentifier
+        new Claim(JwtRegisteredClaimNames.UniqueName, user.UserName), // Use standard JWT claim
+        new Claim(JwtRegisteredClaimNames.Email, user.Email),  // Use standard JWT claim
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+    };
 
-            // Add role claims
+            // IMPORTANT: Use "role" (short name) instead of ClaimTypes.Role (long URI)
             foreach (var role in roles)
             {
-                claims.Add(new Claim(ClaimTypes.Role, role));
+                claims.Add(new Claim("role", role));  // Use short claim name "role"
             }
 
             var tokenDescriptor = new SecurityTokenDescriptor
